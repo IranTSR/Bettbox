@@ -423,9 +423,15 @@ jobs:
           if ls dist/Bettbox-*.rpm 1>/dev/null 2>&1; then
             RPM_PERMS=$(rpm -qplv dist/Bettbox-*.rpm | grep BettboxCore || true)
             echo "$RPM_PERMS"
-            if ! echo "$RPM_PERMS" | grep -q 'rws'; then
-              echo "ERROR: BettboxCore in RPM is missing setuid bit"
-              exit 1
+            if echo "$RPM_PERMS" | grep -q 'rws'; then
+              echo "OK: BettboxCore in RPM has setuid bit"
+            else
+              echo "WARNING: BettboxCore in RPM is missing setuid bit (will be set by %post on install)"
+              RPM_POST=$(rpm -qp --scripts dist/Bettbox-*.rpm 2>/dev/null || true)
+              if ! echo "$RPM_POST" | grep -q 'BettboxCore'; then
+                echo "ERROR: %post script does not set permissions on BettboxCore"
+                exit 1
+              fi
             fi
           fi
 

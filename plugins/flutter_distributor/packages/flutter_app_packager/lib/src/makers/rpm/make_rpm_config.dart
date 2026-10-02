@@ -29,6 +29,7 @@ class MakeRPMConfig extends MakeConfig {
     this.prep,
     this.build,
     this.install,
+    this.post,
     this.postun,
     this.files,
     this.defattr,
@@ -61,6 +62,7 @@ class MakeRPMConfig extends MakeConfig {
       prep: json['prep'] as String?,
       build: json['build'] as String?,
       install: json['install'] as String?,
+      post: json['post'] as String?,
       postun: json['postun'] as String?,
       files: json['files'] as String?,
       defattr: json['defattr'] as String?,
@@ -94,6 +96,7 @@ class MakeRPMConfig extends MakeConfig {
   String? prep;
   String? build;
   String? install;
+  String? post;
   String? postun;
   String? files;
   String? defattr;
@@ -136,6 +139,7 @@ class MakeRPMConfig extends MakeConfig {
                 'cp -r %{name}.png %{buildroot}%{_datadir}/pixmaps',
                 'update-mime-database %{_datadir}/mime &> /dev/null || :',
               ].join('\n'),
+          if (post != null) '%post': post,
           '%postun':
               postun ??
               [
