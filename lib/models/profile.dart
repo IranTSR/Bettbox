@@ -242,7 +242,7 @@ extension ProfileExtension on Profile {
     return copyWith(lastUpdateDate: DateTime.now());
   }
 
-  Future<Profile> saveFileWithString(String value) async {
+  Future<Profile> saveFileWithString(String value, {bool validate = true}) async {
     String content = value;
     final converted = ProxyLinkConverter.tryConvertToClashYaml(content);
     if (converted != null) content = converted;
@@ -256,20 +256,22 @@ extension ProfileExtension on Profile {
       } catch (_) {}
     }
     content = utils.patchYamlConfig(content);
-    final message =
-        await clashCore.validateConfig(content, ageSecretKey: ageSecretKey);
-    if (message.isNotEmpty) {
-      final patched = utils.patchValidateConfig(content);
-      if (patched != content) {
-        final patchedMessage =
-            await clashCore.validateConfig(patched, ageSecretKey: ageSecretKey);
-        if (patchedMessage.isEmpty) {
-          content = patched;
+    if (validate) {
+      final message =
+          await clashCore.validateConfig(content, ageSecretKey: ageSecretKey);
+      if (message.isNotEmpty) {
+        final patched = utils.patchValidateConfig(content);
+        if (patched != content) {
+          final patchedMessage = await clashCore.validateConfig(patched,
+              ageSecretKey: ageSecretKey);
+          if (patchedMessage.isEmpty) {
+            content = patched;
+          } else {
+            throw message;
+          }
         } else {
           throw message;
         }
-      } else {
-        throw message;
       }
     }
     final file = await getFile();
