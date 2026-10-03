@@ -69,7 +69,7 @@ jobs:
         run: |
           flutter pub get
           dart run build_runner build -d
-          dart setup.dart android --arch ${{ matrix.arch }} -v
+          dart setup.dart android --arch ${{ matrix.arch }}
 
       - name: List dist
         run: ls -la ./dist || ls -la ./build/app/outputs/flutter-apk/
