@@ -1,0 +1,109 @@
+name: android-release
+
+on:
+  push:
+    tags:
+      - 'android-v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: '3.44.9'
+  GO_VERSION: '1.25.x'
+  NDK_VERSION: r28c
+  GRADLE_OPTS: -Dorg.gradle.vfs.watch=false
+
+jobs:
+  build-android:
+    name: Build Android APKs
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, arm]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Rust (Android)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi
+
+      - name: Setup Java (Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: build-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
+          link-to-sdk: true
+
+      - name: Setup Golang
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: core/go.sum
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+          cache-key: flutter-android-${{ matrix.arch }}-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: Build APK
+        env:
+          ANDROID_NDK_HOME: ${{ steps.build-ndk.outputs.ndk-path }}
+        run: |
+          flutter pub get
+          dart run build_runner build -d
+          dart setup.dart android --arch ${{ matrix.arch }} -v
+
+      - name: List dist
+        run: ls -la ./dist || ls -la ./build/app/outputs/flutter-apk/
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-android-${{ matrix.arch }}
+          path: ./dist
+          overwrite: true
+
+  release:
+    name: Publish Android release
+    permissions:
+      contents: write
+    needs: [build-android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APKs
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist/
+          pattern: artifact-*
+          merge-multiple: true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/*
+          body: |
+            Bettbox Android build with in-app proxy link auto-converter.
+
+            Import v2rayNG-style links (vless / vmess / trojan / ss / hy2 / tuic),
+            link subscriptions, or a local file — they are converted to Mihomo
+            YAML automatically during import, no external converter needed.
+
+            Debug-signed build, installs alongside the store version.
