@@ -190,6 +190,12 @@ extension ProfileExtension on Profile {
   }
 
   Future<Profile> update({bool validate = true}) async {
+    if (ProxyLinkConverter.isProxyLink(url)) {
+      final linkName = ProxyLinkConverter.linkName(url);
+      return copyWith(
+        label: label ?? (linkName.isNotEmpty ? linkName : id),
+      ).saveFileWithString(url, validate: validate);
+    }
     final response = await request.getFileResponseForUrl(url);
     final disposition = response.headers['content-disposition']?.firstOrNull;
     final userinfo = response.headers['subscription-userinfo']?.firstOrNull;
@@ -201,6 +207,8 @@ extension ProfileExtension on Profile {
 
   Future<Profile> saveFile(Uint8List bytes, {bool validate = true}) async {
     String content = utf8.decode(bytes);
+    final converted = ProxyLinkConverter.tryConvertToClashYaml(content);
+    if (converted != null) content = converted;
     final key = ageSecretKey;
     if (key != null && key.isNotEmpty) {
       try {
@@ -236,6 +244,8 @@ extension ProfileExtension on Profile {
 
   Future<Profile> saveFileWithString(String value) async {
     String content = value;
+    final converted = ProxyLinkConverter.tryConvertToClashYaml(content);
+    if (converted != null) content = converted;
     final key = ageSecretKey;
     if (key != null && key.isNotEmpty) {
       try {
